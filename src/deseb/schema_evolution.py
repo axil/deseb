@@ -155,7 +155,7 @@ def get_sql_evolution_check_for_changed_field_name(klass, old_table_name, style)
         else:
             continue
         if old_col != f.column:
-            col_type = f.db_type()
+            col_type = f.db_type(connection)
             col_type_def = style.SQL_COLTYPE(col_type)
             if col_type is not None:
                 col_def = style.SQL_COLTYPE(col_type) +' '+ style.SQL_KEYWORD('%sNULL' % (not f.null and 'NOT ' or ''))
@@ -400,12 +400,12 @@ def _get_many_to_many_sql_for_field(model, f, style):
             style.SQL_TABLE(connection.ops.quote_name(f.m2m_db_table())) + ' (']
         table_output.append('    %s %s %s%s,' % \
             (style.SQL_FIELD(connection.ops.quote_name('id')),
-            style.SQL_COLTYPE(models.AutoField(primary_key=True).db_type()),
+            style.SQL_COLTYPE(models.AutoField(primary_key=True).db_type(connection)),
             style.SQL_KEYWORD('NOT NULL PRIMARY KEY'),
             tablespace_sql))
         table_output.append('    %s %s %s %s (%s)%s,' % \
             (style.SQL_FIELD(connection.ops.quote_name(f.m2m_column_name())),
-            style.SQL_COLTYPE(models.ForeignKey(model).db_type()),
+            style.SQL_COLTYPE(models.ForeignKey(model).db_type(connection)),
             style.SQL_KEYWORD('NOT NULL REFERENCES'),
             style.SQL_TABLE(connection.ops.quote_name(opts.db_table)),
             style.SQL_FIELD(connection.ops.quote_name(opts.pk.column)),
@@ -413,7 +413,7 @@ def _get_many_to_many_sql_for_field(model, f, style):
             ''))
         table_output.append('    %s %s %s %s (%s)%s,' % \
             (style.SQL_FIELD(connection.ops.quote_name(f.m2m_reverse_name())),
-            style.SQL_COLTYPE(models.ForeignKey(f.rel.to).db_type()),
+            style.SQL_COLTYPE(models.ForeignKey(f.rel.to).db_type(connection)),
             style.SQL_KEYWORD('NOT NULL REFERENCES'),
             style.SQL_TABLE(connection.ops.quote_name(f.rel.to._meta.db_table)),
             style.SQL_FIELD(connection.ops.quote_name(f.rel.to._meta.pk.column)),
