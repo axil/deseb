@@ -39,8 +39,8 @@ class MultipleRenamesPossibleException(Exception): pass
 DEBUG = False
 
 def get_operations_and_introspection_classes(style):
-    from django.db import backend, connection
-
+    from django.db import backend, connection, connections, DEFAULT_DB_ALIAS
+    
     try: # v0.96 compatibility
         v0_96_quote_name = backend.quote_name
         class dummy: pass
@@ -49,7 +49,7 @@ def get_operations_and_introspection_classes(style):
     except:
         pass
     
-    backend_type = str(connection.__class__).split('.')[3]
+    backend_type = str(connections[DEFAULT_DB_ALIAS].__class__).split('.')[3]
     if backend_type=='mysql': import deseb.backends.mysql as backend
     elif backend_type=='postgresql': import deseb.backends.postgresql as backend 
     elif backend_type=='postgresql_psycopg2': import deseb.backends.postgresql_psycopg2 as backend 
@@ -101,11 +101,11 @@ def get_sql_evolution_check_for_new_fields(model, old_table_name, style):
     existing_fields = introspection.get_columns(cursor,db_table)
     for f in getattr(opts, 'local_fields', getattr(opts, 'fields', None)):
         if f.column not in existing_fields and (not f.aka or f.aka not in existing_fields and len(set(f.aka) & set(existing_fields))==0):
-            col_type = f.db_type()
+            col_type = f.db_type(connection)
             if col_type is not None:
                 f_default = get_field_default(f)
                 output.extend( ops.get_add_column_sql( model._meta.db_table, f.column, style.SQL_COLTYPE(col_type), f.null, f.unique, f.primary_key, f_default ) )
-                if settings.DATABASE_ENGINE == 'sqlite3':
+                if settings.DATABASES['default']['ENGINE'] in ['sqlite3', 'django.db.backends.sqlite3']:
                     if f.unique or f.primary_key or not f.null:
                         continue
                 output.extend( get_sql_indexes_for_field(model, f, style) )
@@ -236,21 +236,21 @@ def get_sql_evolution_check_for_changed_field_flags(klass, old_table_name, style
         cf = None # current field, ie what it is before any renames
         if f.column in existing_fields:
             cf = f.column
-            f_col_type = f.db_type()
+            f_col_type = f.db_type(connection)
         elif f.aka and len(set(f.aka).intersection(set(existing_fields)))==1:
             cf = set(f.aka).intersection(set(existing_fields)).pop()
             #hack
             tempname = f.column
             f.column = cf
-            f_col_type = f.db_type()
+            f_col_type = f.db_type(connection)
             f.column = tempname
         else:
             continue # no idea what column you're talking about - should be handled by get_sql_evolution_check_for_new_fields())
         data_type = f.get_internal_type()
         #if data_types.has_key(data_type):
-        if not f.db_type() is None:
+        if not f.db_type(connection) is None:
             #print cf, data_type, f_col_type
-            is_postgresql = settings.DATABASE_ENGINE in ['postgresql', 'postgresql_psycopg2']
+            is_postgresql = settings.DATABASES['default']['ENGINE'] in ['postgresql', 'postgresql_psycopg2', 'django.db.backends.postgresql_psycopg2']
             column_flags = introspection.get_known_column_flags(cursor, db_table, cf)
             update_length = compare_field_length(f, column_flags)
             update_type = get_field_type(column_flags['coltype']) != get_field_type(f_col_type)
@@ -447,7 +447,7 @@ def get_fingerprints_evolutions_from_app(app, style, notify):
     try:
         app_name = app.__name__.split('.')[-2]
         app_se = __import__(app_name +'.schema_evolution').schema_evolution
-        evolutions_list = app_se.__getattribute__(settings.DATABASE_ENGINE+'_evolutions')
+        evolutions_list = app_se.__getattribute__(get_db_engine()+'_evolutions')
         evolutions = {}
         fingerprints = []
         end_fingerprints = []
@@ -571,19 +571,19 @@ def get_introspected_evolution_options(app, style):
         
         rebuild = False
         output = get_sql_evolution_check_for_changed_field_flags(model, old_table_name, style)
-        if output and settings.DATABASE_ENGINE == 'sqlite3': rebuild = True
+        if output and is_sqlite3(): rebuild = True
         final_output.extend(output)
     
         output = get_sql_evolution_check_for_changed_field_name(model, old_table_name, style)
         final_output.extend(output)
-        if output and settings.DATABASE_ENGINE == 'sqlite3': rebuild = True
+        if output and is_sqlite3(): rebuild = True
         
         output = get_sql_evolution_check_for_new_fields(model, old_table_name, style)
-        if output and settings.DATABASE_ENGINE == 'sqlite3': rebuild = True
+        if output and is_sqlite3(): rebuild = True
         final_output.extend(output)
         
         output = get_sql_evolution_check_for_dead_fields(model, old_table_name, style)
-        if output and settings.DATABASE_ENGINE == 'sqlite3': rebuild = True
+        if output and is_sqlite3(): rebuild = True
         final_output.extend(output)
         
         if rebuild:
@@ -600,6 +600,13 @@ def get_introspected_evolution_options(app, style):
     final_output.extend(output)
 
     return final_output
+
+
+def is_sqlite3():
+  return get_db_engine() in ['sqlite3','django.db.backends.sqlite3']
+
+def get_db_engine():
+  return settings.DATABASES['default']['ENGINE']
 
 
 def save_managed_evolution( app, commands, schema_fingerprint, new_schema_fingerprint ):
@@ -620,14 +627,14 @@ def save_managed_evolution( app, commands, schema_fingerprint, new_schema_finger
         
     insertion_point = None
     for i in range(0, len(contents)):
-        if contents[i].strip().endswith("## "+ settings.DATABASE_ENGINE +"_evolutions_end ##"):
+        if contents[i].strip().endswith("## "+ get_db_engine() +"_evolutions_end ##"):
             insertion_point = i
     if insertion_point==None:
         contents.extend( [
             "\n",
             "# all of your evolution scripts, mapping the from_version and to_version to a list if sql commands\n",
-            settings.DATABASE_ENGINE +"_evolutions = [\n",
-            "] # don't delete this comment! ## "+ settings.DATABASE_ENGINE +"_evolutions_end ##\n",
+            get_db_engine() +"_evolutions = [\n",
+            "] # don't delete this comment! ## "+ get_db_engine() +"_evolutions_end ##\n",
         ])
         insertion_point = len(contents) - 1
         

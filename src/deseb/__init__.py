@@ -154,3 +154,6 @@ except:
     django.core.management.NO_SQL_TRANSACTION = tuple(['evolvedb', 'sqlevolve', 'fingerprint']+list(django.core.management.NO_SQL_TRANSACTION))
     django.core.management.execute_from_command_line = execute_from_command_line_v0_96(django.core.management.execute_from_command_line)
     
+
+
+    

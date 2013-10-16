@@ -39,8 +39,8 @@ class DatabaseOperations:
         model = self.get_model_from_table_name(table_name)
         if not model: return []
         output = []
-        output.append('-- FYI: we create a new ' + qn(table_name) +' and delete the old ')
-        output.append('-- FYI: this could take a while if you have a lot of data') 
+        output.append('-- FYI: with sqlite3 we need to create a new ' + qn(table_name) +', copy the data and then delete the old ')
+        output.append('-- FYI: this could take a while if you have a lot') 
     
         tmp_table_name = table_name + '_1337_TMP' # unlikely to produce a namespace conflict
         output.extend(self.get_change_table_name_sql(tmp_table_name, table_name))
