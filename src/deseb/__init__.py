@@ -63,12 +63,12 @@ def add_aka_support():
     django.db.models.Field.__init__ = set_field_aka(django.db.models.Field.__init__)
     django.db.models.FloatField.__init__ = set_field_aka(django.db.models.FloatField.__init__)
     django.db.models.IntegerField.__init__ = set_field_aka(django.db.models.IntegerField.__init__)
-    us_models.PhoneNumberField.__init__ = set_field_aka(us_models.PhoneNumberField.__init__)
+#    us_models.PhoneNumberField.__init__ = set_field_aka(us_models.PhoneNumberField.__init__)
     django.db.models.PositiveIntegerField.__init__ = set_field_aka(django.db.models.PositiveIntegerField.__init__)
     django.db.models.PositiveSmallIntegerField.__init__ = set_field_aka(django.db.models.PositiveSmallIntegerField.__init__)
     django.db.models.SmallIntegerField.__init__ = set_field_aka(django.db.models.SmallIntegerField.__init__)
     django.db.models.TextField.__init__ = set_field_aka(django.db.models.TextField.__init__)
-    us_models.USStateField.__init__ = set_field_aka(us_models.USStateField.__init__)
+#    us_models.USStateField.__init__ = set_field_aka(us_models.USStateField.__init__)
     
     # some v0.96 and v0.97 pre compatibility below
     try:
