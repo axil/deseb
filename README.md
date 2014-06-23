@@ -28,7 +28,7 @@ How it Works
 ============
 Let's say I have the following model:
 
-```
+```python
 class Review(models.Model):
   when = models.DateTimeField(default=datetime.datetime.now)
   text = models.TextField(blank=True, null=True)
