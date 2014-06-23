@@ -53,7 +53,7 @@ class Review(models.Model):
 
 If I run `./manage.py evolvedb`, I'll see:
 
-```bash
+```sql
 $ ./manage.py evolvedb
 appthub: the following schema upgrade is available:
 ALTER TABLE `appthub_review` ADD COLUMN `response` longtext;
@@ -64,7 +64,7 @@ schema upgrade executed
 
 Now suppose I changed my mind on what that column should be called - it should be `review_text`:
 
-```
+```python
 class Review(models.Model):
   when = models.DateTimeField(default=datetime.datetime.now)
   text = models.TextField(blank=True, null=True)
@@ -77,7 +77,7 @@ class Review(models.Model):
 
 Now I run `./manage.py evolvedb` again:
 
-```
+```sql
 $ ./manage.py evolvedb
 appthub: the following schema upgrade is available:
 ALTER TABLE `appthub_review` CHANGE COLUMN `response` `response_text` longtext NULL;
@@ -88,7 +88,7 @@ schema upgrade executed
 
 Now supposed I thought this was a bad idea to begin with, so I change my model back to its original form:
 
-```
+```python
 class Review(models.Model):
   when = models.DateTimeField(default=datetime.datetime.now)
   text = models.TextField(blank=True, null=True)
@@ -100,7 +100,7 @@ class Review(models.Model):
 
 Now run `./manage.py evolvedb` again:
 
-```
+```sql
 $ ./manage.py evolvedb
 appthub: the following schema upgrade is available:
 -- warning: the following may cause data loss
