@@ -53,7 +53,7 @@ class Review(models.Model):
 
 If I run `./manage.py evolvedb`, I'll see:
 
-```sql
+```bash
 $ ./manage.py evolvedb
 appthub: the following schema upgrade is available:
 ALTER TABLE `appthub_review` ADD COLUMN `response` longtext;
