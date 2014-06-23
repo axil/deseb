@@ -10,7 +10,7 @@ Quick Start
 To start using deseb, add the `import deseb` line after you set `DJANGO_SETTINGS_MODULE`
 in your `manage.py`.  Like this:
 
-```
+```python
 #!/usr/bin/env python
 import os
 import sys
@@ -40,7 +40,7 @@ class Review(models.Model):
 
 And I want to add a new column:
 
-```
+```python
 class Review(models.Model):
   when = models.DateTimeField(default=datetime.datetime.now)
   text = models.TextField(blank=True, null=True)
@@ -53,7 +53,7 @@ class Review(models.Model):
 
 If I run `./manage.py evolvedb`, I'll see:
 
-```
+```sql
 $ ./manage.py evolvedb
 appthub: the following schema upgrade is available:
 ALTER TABLE `appthub_review` ADD COLUMN `response` longtext;
