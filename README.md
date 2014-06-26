@@ -38,7 +38,7 @@ class Review(models.Model):
   uuid = UUIDField(version=4)
 ```
 
-And I want to add a new column:
+And I want to add a new column `response`:
 
 ```python
 class Review(models.Model):
@@ -62,7 +62,7 @@ type 'yes' to continue, or 'no' to cancel: yes
 schema upgrade executed
 ```
 
-Now suppose I changed my mind on what that column should be called - it should be `review_text`:
+Now suppose I changed my mind on what that column should be called - it should be `response_text`:
 
 ```python
 class Review(models.Model):
