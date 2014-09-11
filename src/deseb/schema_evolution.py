@@ -3,6 +3,7 @@ from django.core.exceptions import ImproperlyConfigured
 from optparse import OptionParser
 from django.utils import termcolors
 from django.conf import settings
+from django.db import DEFAULT_DB_ALIAS
 
 import os, re, shutil, sys, textwrap, datetime, traceback
 try:
@@ -38,8 +39,14 @@ class MultipleRenamesPossibleException(Exception): pass
 
 DEBUG = False
 
+def get_db_engine():
+  return settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE']
+
+def is_sqlite3():
+  return get_db_engine() in ['sqlite3','django.db.backends.sqlite3']
+
 def get_operations_and_introspection_classes(style):
-    from django.db import backend, connection, connections, DEFAULT_DB_ALIAS
+    from django.db import backend, connection, connections
     
     try: # v0.96 compatibility
         v0_96_quote_name = backend.quote_name
@@ -105,7 +112,7 @@ def get_sql_evolution_check_for_new_fields(model, old_table_name, style):
             if col_type is not None:
                 f_default = get_field_default(f)
                 output.extend( ops.get_add_column_sql( model._meta.db_table, f.column, style.SQL_COLTYPE(col_type), f.null, f.unique, f.primary_key, f_default ) )
-                if settings.DATABASES['default']['ENGINE'] in ['sqlite3', 'django.db.backends.sqlite3']:
+                if get_db_engine() in ['sqlite3', 'django.db.backends.sqlite3']:
                     if f.unique or f.primary_key or not f.null:
                         continue
                 output.extend( get_sql_indexes_for_field(model, f, style) )
@@ -601,16 +608,7 @@ def get_introspected_evolution_options(app, style):
 
     return final_output
 
-
-def is_sqlite3():
-  return get_db_engine() in ['sqlite3','django.db.backends.sqlite3']
-
-def get_db_engine():
-  return settings.DATABASES['default']['ENGINE']
-
-
 def save_managed_evolution( app, commands, schema_fingerprint, new_schema_fingerprint ):
-    from django.conf import settings
     app_name = app.__name__.split('.')[-2]
     
     # find path to app
