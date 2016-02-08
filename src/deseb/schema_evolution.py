@@ -46,7 +46,13 @@ def is_sqlite3():
   return get_db_engine() in ['sqlite3','django.db.backends.sqlite3']
 
 def get_operations_and_introspection_classes(style):
-    from django.db import backend, connection, connections
+    from django.db import connection, connections
+    backend_type = str(connections[DEFAULT_DB_ALIAS].__class__).split('.')[3]
+    if backend_type=='mysql': import deseb.backends.mysql as backend
+    elif backend_type=='postgresql': import deseb.backends.postgresql as backend 
+    elif backend_type=='postgresql_psycopg2': import deseb.backends.postgresql_psycopg2 as backend 
+    elif backend_type=='sqlite3': import deseb.backends.sqlite3 as backend
+    else: raise Exception('backend '+ backend_type +' not supported yet - sorry!')
     
     try: # v0.96 compatibility
         v0_96_quote_name = backend.quote_name
@@ -56,19 +62,13 @@ def get_operations_and_introspection_classes(style):
     except:
         pass
     
-    backend_type = str(connections[DEFAULT_DB_ALIAS].__class__).split('.')[3]
-    if backend_type=='mysql': import deseb.backends.mysql as backend
-    elif backend_type=='postgresql': import deseb.backends.postgresql as backend 
-    elif backend_type=='postgresql_psycopg2': import deseb.backends.postgresql_psycopg2 as backend 
-    elif backend_type=='sqlite3': import deseb.backends.sqlite3 as backend
-    else: raise Exception('backend '+ backend_type +' not supported yet - sorry!')
     ops = backend.DatabaseOperations(connection, style)
     introspection = backend.DatabaseIntrospection(connection)
     return ops, introspection
 
 def get_sql_indexes_for_field(model, f, style):
     "Returns the CREATE INDEX SQL statement for a single field"
-    from django.db import backend, connection
+    from django.db import connection
     output = []
     autoindexes_pk = getattr(connection.features, 'autoindexes_primary_keys', False)
     if f.db_index and not ((f.primary_key or f.unique) and autoindexes_pk):
@@ -77,10 +77,10 @@ def get_sql_indexes_for_field(model, f, style):
             tablespace = f.db_tablespace or model._meta.db_tablespace
         except: # v0.96 compatibility
             tablespace = None
-        if tablespace and backend.supports_tablespaces:
-            tablespace_sql = ' ' + backend.get_tablespace_sql(tablespace)
-        else:
-            tablespace_sql = ''
+#        if tablespace and backend.supports_tablespaces:
+#            tablespace_sql = ' ' + backend.get_tablespace_sql(tablespace)
+#        else:
+        tablespace_sql = ''
         output.append(
             style.SQL_KEYWORD('CREATE %sINDEX' % unique) + ' ' + \
             style.SQL_TABLE(connection.ops.quote_name('%s_%s' % (model._meta.db_table, f.column))) + ' ' + \
@@ -97,7 +97,7 @@ def get_sql_evolution_check_for_new_fields(model, old_table_name, style):
 
     ops, introspection = get_operations_and_introspection_classes(style)
     
-    data_types = connection.creation.data_types
+    #data_types = connection.creation.data_types
     cursor = connection.cursor()
 #    introspection = ops = get_ops_class(connection)
     opts = model._meta
@@ -107,7 +107,7 @@ def get_sql_evolution_check_for_new_fields(model, old_table_name, style):
         db_table = old_table_name
     existing_fields = introspection.get_columns(cursor,db_table)
     for f in getattr(opts, 'local_fields', getattr(opts, 'fields', None)):
-        if f.column not in existing_fields and (not f.aka or f.aka not in existing_fields and len(set(f.aka) & set(existing_fields))==0):
+        if f.column not in existing_fields and (not hasattr(f, 'aka') or not f.aka or f.aka not in existing_fields and len(set(f.aka) & set(existing_fields))==0):
             col_type = f.db_type(connection)
             if col_type is not None:
                 f_default = get_field_default(f)
@@ -130,7 +130,7 @@ def get_sql_evolution_check_for_changed_model_name(klass, style):
     if klass._meta.db_table in table_list:
         return [], None
     aka_db_tables = set()
-    if klass._meta.aka:
+    if hasattr(klass._meta, 'aka') and klass._meta.aka:
         for x in klass._meta.aka:
             aka_db_tables.add( "%s_%s" % (klass._meta.app_label, x.lower()) )
     matches = list(aka_db_tables & set(table_list))
@@ -154,9 +154,9 @@ def get_sql_evolution_check_for_changed_field_name(klass, old_table_name, style)
         existing_fields = introspection.get_columns(cursor,db_table)
         if f.column in existing_fields:
             old_col = f.column
-        elif f.aka and len(set(f.aka).intersection(set(existing_fields)))==1:
+        elif hasattr(f, 'aka') and f.aka and len(set(f.aka).intersection(set(existing_fields)))==1:
             old_col = set(f.aka).intersection(set(existing_fields)).pop()
-        elif f.aka and len(set(f.aka).intersection(set(existing_fields)))>1:
+        elif hasattr(f, 'aka') and f.aka and len(set(f.aka).intersection(set(existing_fields)))>1:
             details = 'column "%s" of table "%s"' % (f.column, klass._meta.db_table)
             raise MultipleRenamesPossibleException("when renamed " + details)
         else:
@@ -229,7 +229,7 @@ def get_sql_evolution_check_for_changed_field_flags(klass, old_table_name, style
     ops, introspection = get_operations_and_introspection_classes(style)
     
     from django.db import connection
-    data_types = connection.creation.data_types
+    #data_types = connection.creation.data_types
     cursor = connection.cursor()
 #    introspection = ops = get_ops_class(connection)
     opts = klass._meta
@@ -244,7 +244,7 @@ def get_sql_evolution_check_for_changed_field_flags(klass, old_table_name, style
         if f.column in existing_fields:
             cf = f.column
             f_col_type = f.db_type(connection)
-        elif f.aka and len(set(f.aka).intersection(set(existing_fields)))==1:
+        elif hasattr(f, 'aka') and f.aka and len(set(f.aka).intersection(set(existing_fields)))==1:
             cf = set(f.aka).intersection(set(existing_fields)).pop()
             #hack
             tempname = f.column
@@ -336,7 +336,7 @@ def get_sql_evolution_check_for_dead_models(table_list, safe_tables, app_name, a
     except:
         pass
     delete_tables = set()
-    for t in table_list:
+    for t in [(tt if type(tt) is unicode else tt.name) for tt in table_list]:
         if t.startswith(app_label) and not t in safe_tables:
             delete_tables.add(t)
     return ops.get_drop_table_sql(delete_tables)
@@ -384,7 +384,8 @@ def fixed_sql_model_create(model, known_models, style):
         return management._get_sql_model_create( model, known_models )
 
 def _get_many_to_many_sql_for_field(model, f, style):
-    from django.db import backend, models, connection
+    from django.db import  models, connection
+    from django.contrib.contenttypes.fields import GenericRel
     try:
         from django.contrib.contenttypes import generic
     except: # v0.96 compatibility
@@ -394,16 +395,16 @@ def _get_many_to_many_sql_for_field(model, f, style):
 
     opts = model._meta
     final_output = []
-    if not isinstance(f.rel, generic.GenericRel):
+    if not isinstance(f.rel, GenericRel):
         try:
             tablespace = f.db_tablespace or opts.db_tablespace
         except: # v0.96 compatibility
             tablespace = None
         autoindexes_pk = getattr(connection.features, 'autoindexes_primary_keys', False)
-        if tablespace and backend.supports_tablespaces and autoindexes_pk:
-            tablespace_sql = ' ' + backend.get_tablespace_sql(tablespace, inline=True)
-        else:
-            tablespace_sql = ''
+#        if tablespace and backend.supports_tablespaces and autoindexes_pk:
+#            tablespace_sql = ' ' + backend.get_tablespace_sql(tablespace, inline=True)
+#        else:
+        tablespace_sql = ''
         table_output = [style.SQL_KEYWORD('CREATE TABLE') + ' ' + \
             style.SQL_TABLE(connection.ops.quote_name(f.m2m_db_table())) + ' (']
         table_output.append('    %s %s %s%s,' % \
@@ -555,7 +556,7 @@ def get_introspected_evolution_options(app, style):
         if getattr(model._meta, 'aka', ''):
             for x in model._meta.aka:
                 aka_db_tables.add( "%s_%s" % (model._meta.app_label, x.lower()) )
-        if model._meta.db_table in table_list or len(aka_db_tables & set(table_list))>0:
+        if model._meta.db_table in [(t if type(t)==unicode else t.name) for t in table_list] or len(aka_db_tables & set(table_list))>0:
             continue #renamed
         sql, references = fixed_sql_model_create(model, seen_models, style)
         final_output.extend(sql)

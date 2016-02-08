@@ -304,8 +304,13 @@ class DatabaseIntrospection:
             dict['unique'] = True
             
         #get indexes
+#        cursor.execute("""SELECT c2.relname, i.indisprimary, i.indisunique, i.indisclustered,
+#        i.indisvalid, pg_catalog.pg_get_indexdef(i.indexrelid, 0, true), c2.reltablespace
+#        FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
+#        WHERE c.relname = '%s' AND i.indkey = '%s' and c.oid = i.indrelid AND i.indexrelid = c2.oid 
+#        ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname;""" % (table_name, attnum) )
         cursor.execute("""SELECT c2.relname, i.indisprimary, i.indisunique, i.indisclustered,
-        i.indisvalid, pg_catalog.pg_get_indexdef(i.indexrelid, 0, true), c2.reltablespace
+        't', pg_catalog.pg_get_indexdef(i.indexrelid, 0, true), c2.reltablespace
         FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
         WHERE c.relname = '%s' AND i.indkey = '%s' and c.oid = i.indrelid AND i.indexrelid = c2.oid 
         ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname;""" % (table_name, attnum) )
